@@ -1,0 +1,220 @@
+/* ============================================================================
+   LTU Experimental Biomechanics Laboratory (EBL)
+   Squat Biomechanics & Form Analyzer v2.0 — Custom Stylesheet
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --ltu-navy: #002D62;
+  --ltu-blue: #2563EB;
+  --ltu-accent: #0079C2;
+  --emerald: #059669;
+  --amber: #D97706;
+  --rose: #E11D48;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #F8FAFC;
+  color: #1E293B;
+  overflow-x: hidden;
+}
+
+.font-mono-num {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom Range Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #CBD5E1;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #2563EB;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  margin-top: -5px;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #1D4ED8;
+}
+
+input[type="range"].scrubber-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #334155;
+}
+
+input[type="range"].scrubber-slider::-webkit-slider-thumb {
+  background: #38BDF8;
+  border: 2px solid #0F172A;
+}
+
+/* Video & Canvas Responsive Viewport Container
+   Supports both 16:9 landscape webcams and 9:16 portrait smartphone videos
+   without cropping the subject's head or ankles. */
+.biomech-viewport {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+  max-height: 74vh;
+  background: radial-gradient(circle at center, #0F172A 0%, #020617 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.biomech-viewport.aspect-portrait {
+  min-height: 460px;
+  max-height: 76vh;
+}
+
+#webcam,
+#output-canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+#output-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Mirror utility for front-facing selfie camera (video only; canvas handles its own coordinate flip so text stays legible) */
+.mirror-video {
+  transform: scaleX(-1);
+}
+
+/* Replay Studio Video + Canvas */
+.replay-viewport {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  background: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#replay-video {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+#replay-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Pulsing Recording Indicator */
+@keyframes pulse-rec {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+}
+
+.rec-dot {
+  animation: pulse-rec 1.4s infinite ease-in-out;
+}
+
+/* Scoreboard Card Flash Animations */
+@keyframes flash-emerald {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes flash-amber {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+@keyframes flash-rose {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+.flash-rep-full {
+  animation: flash-emerald 0.8s ease-out;
+}
+
+.flash-rep-partial {
+  animation: flash-amber 0.8s ease-out;
+}
+
+.flash-rep-error {
+  animation: flash-rose 0.8s ease-out;
+}
+
+/* Custom Scrollbar for Rep Log & Tables */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Mobile touch optimization */
+@media (max-width: 640px) {
+  .biomech-viewport {
+    min-height: 300px;
+    max-height: 62vh;
+  }
+  .replay-viewport {
+    height: 280px;
+  }
+}

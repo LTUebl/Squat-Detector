@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Squat Biomechanics & Form Analyzer | LTU Experimental Biomechanics Lab</title>
+  <link rel="icon" type="image/png" href="EBLlogo.png">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 6.4.0 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Plotly.js 2.29.1 CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+  <!-- MediaPipe Pose & Drawing Utils CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- ========================================================================
+       TOP HEADER NAVIGATION (LTU EBL Standard Template)
+       ======================================================================== -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <img src="EBLlogo.png" alt="LTU EBL Logo" class="h-11 w-auto rounded-lg border border-slate-200 shadow-sm object-contain bg-white p-0.5" onerror="this.style.display='none'; document.getElementById('fallback-header-icon').classList.remove('hidden');">
+        <div id="fallback-header-icon" class="hidden w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md">
+          <i class="fas fa-dumbbell"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Squat Biomechanics &amp; Form Analyzer</h1>
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">v2.0 · 2D+3D Fusion · OpenSim Validated</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">
+            Lawrence Technological University · Dept. of Biomedical Engineering · Experimental Biomechanics Lab (EBL)
+          </p>
+        </div>
+      </div>
+
+      <!-- Header Quick Action Links -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="header-btn-studio" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition">
+          <i class="fas fa-film text-blue-600"></i>
+          <span>Analysis Studio</span>
+          <span id="studio-badge-count" class="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-600 text-white font-bold">0</span>
+        </button>
+        <a href="#validation-section" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition">
+          <i class="fas fa-check-double text-emerald-600"></i>
+          <span>OpenSim Validation</span>
+        </a>
+        <a href="#student-lab-section" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition">
+          <i class="fas fa-graduation-cap text-amber-600"></i>
+          <span>Student Lab</span>
+        </a>
+        <a href="https://ltuebl.github.io/EBLWeb/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition" title="Back to LTU EBL Portal">
+          <i class="fas fa-university text-blue-700"></i>
+          <span>EBL Portal</span>
+        </a>
+        <a href="https://github.com/LTUebl/Squat-Detector" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md transition shadow-sm">
+          <i class="fab fa-github"></i>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN CONTAINER
+       ======================================================================== -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1 w-full space-y-6">
+
+    <!-- ======================================================================
+         INPUT SOURCE & TRIAL SELECTOR BAR (Camera / Smartphone / Sample Videos)
+         ====================================================================== -->
+    <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+      <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+
+        <!-- Left: Live Camera & Smartphone Controls -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] uppercase tracking-wider font-bold text-slate-400">
+              <i class="fas fa-camera mr-1 text-blue-600"></i> Live Camera / Smartphone Input
+            </span>
+            <span id="camera-status-pill" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              Standby
+            </span>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Start / Stop Camera Button -->
+            <button id="btn-toggle-camera" type="button" class="px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition flex items-center gap-2">
+              <i id="btn-camera-icon" class="fas fa-video"></i>
+              <span id="btn-camera-label">Start Live Camera</span>
+            </button>
+
+            <!-- Flip Camera (Front / Rear for Smartphone) -->
+            <button id="btn-flip-camera" type="button" class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5" title="Switch between Front (Selfie) and Rear (Environment) smartphone camera">
+              <i class="fas fa-sync-alt text-blue-600"></i>
+              <span id="flip-camera-label">Flip (Front/Rear)</span>
+            </button>
+
+            <!-- Camera Device Dropdown -->
+            <select id="camera-select" aria-label="Select Camera Device" class="text-xs font-medium bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[210px] truncate">
+              <option value="">Default Camera (Auto)</option>
+            </select>
+
+            <!-- Mirror Toggle -->
+            <label class="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition" title="Mirror video display horizontally (recommended for selfie camera)">
+              <input type="checkbox" id="toggle-mirror" class="rounded text-blue-600 focus:ring-blue-500">
+              <i class="fas fa-arrows-alt-h text-slate-500"></i>
+              <span>Mirror</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="hidden xl:block w-px h-12 bg-slate-200"></div>
+
+        <!-- Middle: Validated Sample Squat Videos & Custom Video Upload -->
+        <div class="space-y-2">
+          <span class="text-[11px] uppercase tracking-wider font-bold text-slate-400 block">
+            <i class="fas fa-vial mr-1 text-emerald-600"></i> Validated Sample Videos &amp; File Upload
+          </span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="btn-sample-sagittal" type="button" class="sample-btn px-3 py-2 text-xs font-semibold rounded-lg border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 transition flex items-center gap-1.5 shadow-sm">
+              <i class="fas fa-play-circle text-emerald-600"></i>
+              <span>Sample 1: Deep Squat (Cam0 · OpenSim GT)</span>
+            </button>
+            <button id="btn-sample-frontal" type="button" class="sample-btn px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-900 transition flex items-center gap-1.5">
+              <i class="fas fa-play-circle text-blue-600"></i>
+              <span>Sample 1B: Frontal View (Cam1 · GT)</span>
+            </button>
+            <button id="btn-sample-multiview" type="button" class="sample-btn px-3 py-2 text-xs font-semibold rounded-lg border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-indigo-900 transition flex items-center gap-1.5">
+              <i class="fas fa-sync text-indigo-600"></i>
+              <span>Sample 2: 4-Rep Multi-View Squat</span>
+            </button>
+
+            <!-- Upload Custom Video Button -->
+            <label for="video-upload-input" class="px-3 py-2 text-xs font-semibold rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+              <i class="fas fa-upload text-amber-600"></i>
+              <span>Upload Video (.mp4/.mov)</span>
+              <input id="video-upload-input" type="file" accept="video/*" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <!-- Right: Session Actions -->
+        <div class="flex items-center gap-2 self-start xl:self-end pt-1 xl:pt-0">
+          <button id="btn-stop-analyze" type="button" class="px-3.5 py-2 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition flex items-center gap-1.5" title="Stop current session and open the Post-Recording Kinematic Analysis Studio">
+            <i class="fas fa-chart-line"></i>
+            <span>Stop &amp; Analyze</span>
+          </button>
+          <button id="btn-export-csv-main" type="button" class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5" title="Export frame-by-frame joint kinematics to CSV">
+            <i class="fas fa-file-csv text-emerald-600"></i>
+            <span>CSV</span>
+          </button>
+          <button id="btn-reset-session" type="button" class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5" title="Reset rep counters and clear recorded kinematics">
+            <i class="fas fa-redo-alt text-slate-500"></i>
+            <span>Reset</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         MAIN 12-COLUMN WORKSPACE GRID
+         Left (7 cols): Live Video + Pose Canvas + Telemetry Cards
+         Right (5 cols): Rep Scoreboard + Live Rep Feed + Biomech Settings
+         ====================================================================== -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- ====================================================================
+           LEFT COLUMN (7 COLS): LIVE VIEWPORT & JOINT ANGLE TELEMETRY
+           ==================================================================== -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- Live Biomechanical Viewport Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <!-- Viewport Top Bar -->
+          <div class="px-4 py-2.5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2.5">
+              <span id="rec-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                <span id="rec-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span id="rec-status-text">IDLE</span>
+              </span>
+              <span id="source-title-label" class="text-xs font-semibold text-slate-200 truncate max-w-[240px] sm:max-w-xs">
+                Select Live Camera or a Sample Video to begin
+              </span>
+            </div>
+
+            <div class="flex items-center gap-3 text-xs">
+              <span id="visibility-badge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono-num text-[11px] border border-slate-700" title="Bilateral landmark confidence">
+                Vis: --%
+              </span>
+              <span id="fps-badge" class="px-2 py-0.5 rounded bg-slate-800 text-sky-400 font-mono-num text-[11px] border border-slate-700">
+                -- FPS
+              </span>
+              <span id="frame-count-badge" class="px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono-num text-[11px] border border-slate-700">
+                0 frames
+              </span>
+            </div>
+          </div>
+
+          <!-- Video & Canvas Container -->
+          <div id="viewport-container" class="biomech-viewport">
+            <video id="webcam" playsinline muted autoplay></video>
+            <canvas id="output-canvas"></canvas>
+
+            <!-- Idle Welcome Overlay (Hidden once camera/video starts) -->
+            <div id="viewport-idle-overlay" class="absolute inset-0 bg-slate-900/95 text-white flex flex-col items-center justify-center p-6 text-center z-30">
+              <div class="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-400/40 flex items-center justify-center text-blue-400 text-3xl mb-4 shadow-lg">
+                <i class="fas fa-user-check"></i>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-1">Real-Time 2D+3D Squat Biomechanics Engine</h3>
+              <p class="text-xs text-slate-300 max-w-md mb-5 leading-relaxed">
+                Stream directly from your <strong>smartphone camera</strong> (portrait or landscape) or test with our <strong>OpenSim ground-truth validated sample videos</strong>. Every frame is recorded for post-trial kinematic graph &amp; video replay analysis.
+              </p>
+              <div class="flex items-center justify-center gap-3 flex-wrap">
+                <button type="button" onclick="document.getElementById('btn-toggle-camera').click()" class="px-4 py-2.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition flex items-center gap-2">
+                  <i class="fas fa-video"></i>
+                  <span>Start Live Camera</span>
+                </button>
+                <button type="button" onclick="document.getElementById('btn-sample-sagittal').click()" class="px-4 py-2.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition flex items-center gap-2">
+                  <i class="fas fa-play"></i>
+                  <span>Run Sample 1 (OpenSim Deep Squat)</span>
+                </button>
+                <button type="button" onclick="document.getElementById('btn-sample-multiview').click()" class="px-4 py-2.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition flex items-center gap-2">
+                  <i class="fas fa-sync"></i>
+                  <span>Run Sample 2 (4-Rep Multi-View)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Top-Left HUD: Squat Phase & Coaching Cue Banner -->
+            <div class="absolute top-3 left-3 right-16 z-20 pointer-events-none flex flex-col items-start gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span id="hud-phase-badge" class="px-3 py-1 rounded-md text-xs font-black tracking-wide uppercase bg-slate-900/85 text-white border border-slate-600 shadow-md backdrop-blur-sm">
+                  PHASE: STANDING
+                </span>
+                <span id="hud-view-badge" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-900/80 text-sky-300 border border-slate-700 backdrop-blur-sm">
+                  View: Auto-Detect
+                </span>
+              </div>
+              <div id="hud-coaching-banner" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-900/85 text-emerald-300 border border-emerald-500/40 shadow-lg backdrop-blur-sm transition-all duration-200">
+                <i class="fas fa-info-circle mr-1.5"></i>
+                <span id="hud-coaching-text">Ready — Stand in frame with full body visible</span>
+              </div>
+            </div>
+
+            <!-- Right-Side Vertical Knee Depth Gauge HUD -->
+            <div class="absolute top-3 bottom-14 right-3 w-9 z-20 pointer-events-none flex flex-col items-center bg-slate-900/80 border border-slate-700 rounded-lg p-1.5 backdrop-blur-sm">
+              <span class="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">Depth</span>
+              <div class="relative flex-1 w-3 bg-slate-800 rounded-full overflow-hidden my-1 border border-slate-700">
+                <!-- Partial threshold line (45 deg / 140 deg = 32%) -->
+                <div id="gauge-partial-line" class="absolute w-full border-t border-dashed border-amber-400 z-10" style="top: 32%;" title="Min Squat Entry (45°)"></div>
+                <!-- Full depth line (80 deg / 140 deg = 57%) -->
+                <div id="gauge-full-line" class="absolute w-full border-t-2 border-emerald-400 z-10" style="top: 57%;" title="Full Squat Target (80°)"></div>
+                <!-- Dynamic Fill Bar -->
+                <div id="hud-depth-fill" class="w-full bg-gradient-to-b from-sky-400 via-blue-500 to-emerald-500 transition-all duration-75 rounded-full" style="height: 0%;"></div>
+              </div>
+              <span id="hud-depth-val" class="text-[10px] font-mono-num font-bold text-white">0°</span>
+            </div>
+          </div>
+
+          <!-- Video Playback Bar (Visible when playing a Sample or Uploaded Video) -->
+          <div id="live-video-controls" class="hidden px-4 py-2.5 bg-slate-900 border-t border-slate-800 text-white flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex items-center gap-2">
+              <button id="btn-video-playpause" type="button" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-xs font-semibold transition flex items-center gap-1">
+                <i class="fas fa-pause"></i>
+                <span>Pause</span>
+              </button>
+              <button id="btn-video-restart" type="button" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition flex items-center gap-1">
+                <i class="fas fa-redo"></i>
+                <span>Replay Trial</span>
+              </button>
+              <span id="live-video-time" class="text-xs font-mono-num text-slate-300 ml-1">0.00s / 0.00s</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="openAnalysisStudio()" class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-sm">
+                <i class="fas fa-chart-area"></i>
+                <span>Inspect in Analysis Studio</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 Real-Time Joint Angle Telemetry Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <!-- Knee Flexion -->
+          <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-t-4 border-t-blue-600">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Knee Flexion</span>
+              <span class="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">&ge;80° Full</span>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span id="live-knee-angle" class="text-2xl font-black font-mono-num text-slate-900">0.0°</span>
+            </div>
+            <div id="live-knee-rl" class="text-[10px] font-mono-num text-slate-500 mt-1 truncate">
+              R: --° · L: --°
+            </div>
+          </div>
+
+          <!-- Hip Flexion -->
+          <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-t-4 border-t-emerald-600">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hip Flexion</span>
+              <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">&ge;65° Full</span>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span id="live-hip-angle" class="text-2xl font-black font-mono-num text-slate-900">0.0°</span>
+            </div>
+            <div id="live-hip-rl" class="text-[10px] font-mono-num text-slate-500 mt-1 truncate">
+              R: --° · L: --°
+            </div>
+          </div>
+
+          <!-- Trunk Lean -->
+          <div id="card-trunk-lean" class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-t-4 border-t-amber-500 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Trunk Lean</span>
+              <span class="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">&le;40° Safe</span>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span id="live-trunk-angle" class="text-2xl font-black font-mono-num text-slate-900">0.0°</span>
+            </div>
+            <div id="live-trunk-status" class="text-[10px] font-medium text-slate-500 mt-1 truncate">
+              Sagittal inclination
+            </div>
+          </div>
+
+          <!-- Ankle Dorsiflexion -->
+          <div class="bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-t-4 border-t-purple-600">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ankle Dorsi</span>
+              <span class="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">15–40°</span>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span id="live-ankle-angle" class="text-2xl font-black font-mono-num text-slate-900">0.0°</span>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-1 truncate">
+              Tibial advance (0.74&times;)
+            </div>
+          </div>
+
+          <!-- Frontal Knee Valgus -->
+          <div id="card-knee-valgus" class="col-span-2 sm:col-span-1 bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 border-t-4 border-t-rose-500 transition">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Knee Valgus</span>
+              <span class="text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">&le;10° Safe</span>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span id="live-valgus-angle" class="text-2xl font-black font-mono-num text-slate-900">0.0°</span>
+            </div>
+            <div id="live-valgus-status" class="text-[10px] font-medium text-slate-500 mt-1 truncate">
+              Frontal medial collapse
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Real-Time Kinematic Trace Preview Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 flex-wrap gap-2">
+            <div>
+              <h3 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i class="fas fa-wave-square text-blue-600"></i>
+                <span>Real-Time Joint Angle Stream (Last 10 Seconds)</span>
+              </h3>
+              <p class="text-[11px] text-slate-500">Live 2D+3D fused joint trajectories · Click "Open Analysis Studio" for full synchronized replay &amp; OpenSim comparison</p>
+            </div>
+            <button type="button" onclick="openAnalysisStudio()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-sm">
+              <i class="fas fa-expand-arrows-alt"></i>
+              <span>Open Full Analysis Studio</span>
+            </button>
+          </div>
+          <div id="live-mini-chart" class="w-full h-48"></div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================
+           RIGHT COLUMN (5 COLS): SCOREBOARD, LIVE REP LOG & THRESHOLD SETTINGS
+           ==================================================================== -->
+      <div class="lg:col-span-5 space-y-5">
+
+        <!-- 3 Repetition Counter Cards -->
+        <div class="grid grid-cols-3 gap-3">
+          <!-- Full Reps -->
+          <div id="card-counter-full" class="bg-white rounded-xl p-4 shadow-sm border-2 border-emerald-200 bg-gradient-to-br from-white to-emerald-50/40 text-center">
+            <div class="w-8 h-8 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold mb-1">
+              <i class="fas fa-check"></i>
+            </div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Full Reps</div>
+            <div id="full-rep-counter" class="text-3xl sm:text-4xl font-black font-mono-num text-emerald-600 my-0.5">0</div>
+            <div id="full-rep-sublabel" class="text-[10px] text-slate-500 font-medium">Knee &ge;80° &amp; Hip &ge;65°</div>
+          </div>
+
+          <!-- Partial Reps -->
+          <div id="card-counter-partial" class="bg-white rounded-xl p-4 shadow-sm border-2 border-amber-200 bg-gradient-to-br from-white to-amber-50/40 text-center">
+            <div class="w-8 h-8 mx-auto rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold mb-1">
+              <i class="fas fa-compress-alt"></i>
+            </div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-amber-800">Partial Reps</div>
+            <div id="partial-rep-counter" class="text-3xl sm:text-4xl font-black font-mono-num text-amber-600 my-0.5">0</div>
+            <div class="text-[10px] text-slate-500 font-medium">Shallow (45°–79°)</div>
+          </div>
+
+          <!-- Reps with Form Errors -->
+          <div id="card-counter-error" class="bg-white rounded-xl p-4 shadow-sm border-2 border-rose-200 bg-gradient-to-br from-white to-rose-50/40 text-center">
+            <div class="w-8 h-8 mx-auto rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-sm font-bold mb-1">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-rose-800">Form Errors</div>
+            <div id="error-rep-counter" class="text-3xl sm:text-4xl font-black font-mono-num text-rose-600 my-0.5">0</div>
+            <div class="text-[10px] text-slate-500 font-medium">Trunk / Valgus / Depth</div>
+          </div>
+        </div>
+
+        <!-- Live Rep-by-Rep Diagnostic Log Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-list-ol text-blue-600"></i>
+              <h3 class="text-sm font-bold text-slate-900">Repetition-by-Repetition Diagnostic Feed</h3>
+            </div>
+            <span id="rep-feed-summary" class="text-xs font-semibold text-slate-500">0 reps logged</span>
+          </div>
+
+          <div id="live-rep-log" class="divide-y divide-slate-100 max-h-64 overflow-y-auto custom-scrollbar p-3 space-y-2">
+            <div class="text-center py-6 text-xs text-slate-400">
+              <i class="fas fa-dumbbell text-2xl mb-1.5 block text-slate-300"></i>
+              Completed squat repetitions will appear here with peak angles and form diagnostics.
+            </div>
+          </div>
+        </div>
+
+        <!-- Biomechanical Thresholds & Calibration Settings Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-sliders-h text-blue-600"></i>
+              <h3 class="text-sm font-bold text-slate-900">Biomechanical Thresholds &amp; Calibration</h3>
+            </div>
+            <button id="btn-reset-thresholds" type="button" class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline">
+              Reset to OpenSim Defaults
+            </button>
+          </div>
+
+          <div class="p-4 space-y-3.5 text-xs">
+            <!-- Full Squat Knee Flexion Target -->
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <label for="slider-knee-target">Full Squat Knee Flexion Target</label>
+                <span id="val-knee-target" class="font-mono-num text-blue-600 font-bold">80°</span>
+              </div>
+              <input id="slider-knee-target" type="range" min="55" max="125" step="1" value="80" class="w-full">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <span>55° (Functional)</span>
+                <span>80° (Validated Default)</span>
+                <span>115°+ (Deep)</span>
+              </div>
+            </div>
+
+            <!-- Full Squat Hip Flexion Target -->
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <label for="slider-hip-target">Full Squat Hip Flexion Target</label>
+                <span id="val-hip-target" class="font-mono-num text-emerald-600 font-bold">65°</span>
+              </div>
+              <input id="slider-hip-target" type="range" min="45" max="105" step="1" value="65" class="w-full">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <span>45°</span>
+                <span>65° (Validated Default)</span>
+                <span>105°</span>
+              </div>
+            </div>
+
+            <!-- Max Allowed Trunk Lean -->
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <label for="slider-trunk-max">Max Forward Trunk Lean (Error Cutoff)</label>
+                <span id="val-trunk-max" class="font-mono-num text-amber-600 font-bold">40°</span>
+              </div>
+              <input id="slider-trunk-max" type="range" min="25" max="60" step="1" value="40" class="w-full">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <span>25° (Strict Upright)</span>
+                <span>40° (Athletic Default)</span>
+                <span>60° (Low-Bar)</span>
+              </div>
+            </div>
+
+            <!-- Max Allowed Knee Valgus -->
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <label for="slider-valgus-max">Max Frontal Knee Valgus Collapse</label>
+                <span id="val-valgus-max" class="font-mono-num text-rose-600 font-bold">10°</span>
+              </div>
+              <input id="slider-valgus-max" type="range" min="5" max="25" step="1" value="10" class="w-full">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <span>5° (Strict)</span>
+                <span>10° (Clinical Cutoff)</span>
+                <span>25°</span>
+              </div>
+            </div>
+
+            <!-- EMA Smoothing Alpha -->
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <label for="slider-ema-alpha">EMA Filter Responsiveness (&alpha;)</label>
+                <span id="val-ema-alpha" class="font-mono-num text-slate-700 font-bold">0.35</span>
+              </div>
+              <input id="slider-ema-alpha" type="range" min="0.15" max="0.75" step="0.05" value="0.35" class="w-full">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <span>0.15 (Heavier Smoothing)</span>
+                <span>0.35 (Optimal 60Hz/30Hz)</span>
+                <span>0.75 (Raw)</span>
+              </div>
+            </div>
+
+            <!-- Toggles: Auto-Open Studio & Audio Coaching -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+              <label class="inline-flex items-center gap-2 cursor-pointer select-none text-slate-700 font-medium">
+                <input type="checkbox" id="toggle-auto-studio" checked class="rounded text-blue-600 focus:ring-blue-500">
+                <span>Auto-open Analysis Studio when video ends</span>
+              </label>
+              <label class="inline-flex items-center gap-2 cursor-pointer select-none text-slate-700 font-medium">
+                <input type="checkbox" id="toggle-voice-cues" class="rounded text-blue-600 focus:ring-blue-500">
+                <span><i class="fas fa-volume-up text-blue-600 mr-1"></i>Audio Cues</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================================
+         OPENSIM GROUND-TRUTH VALIDATION & BENCHMARK SECTION
+         ====================================================================== -->
+    <section id="validation-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-5 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <i class="fas fa-check-double mr-1"></i> OPENSIM BENCHMARK VERIFIED
+            </span>
+            <span class="text-xs text-slate-500 font-semibold">LaiUhlrich2022 Musculoskeletal Model · 60 Hz Inverse Kinematics</span>
+          </div>
+          <h2 class="text-lg sm:text-xl font-bold text-slate-900 mt-1">
+            OpenSim Ground-Truth Validation &amp; Multi-View Error Detection Benchmark
+          </h2>
+          <p class="text-xs text-slate-600 mt-0.5 max-w-4xl">
+            Comparison of the original 2D normalized-coordinate prototype against our updated <strong>Bilateral Visibility-Weighted 2D Pixel + 3D World Landmark Fusion Engine</strong> across oblique, frontal, and 4-view rotating squat trials.
+          </p>
+        </div>
+
+        <button id="btn-run-selftest" type="button" class="px-4 py-2.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-2 self-start md:self-auto flex-shrink-0">
+          <i class="fas fa-vial"></i>
+          <span>Run In-Browser Verification Suite (6 Tests)</span>
+        </button>
+      </div>
+
+      <!-- Self-Test Suite Dynamic Output Container (Hidden until clicked or auto-populated) -->
+      <div id="selftest-results-container" class="hidden p-4 bg-emerald-50/50 border-b border-emerald-200">
+        <!-- Populated by runSelfTestSuite() in app.js -->
+      </div>
+
+      <!-- Benchmark Comparison Table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-700">
+              <th class="p-3 font-bold">Benchmark Trial &amp; Camera Perspective</th>
+              <th class="p-3 font-bold">Biomechanical Metric</th>
+              <th class="p-3 font-bold text-blue-800">OpenSim Ground Truth (<code>Squat.mot</code>)</th>
+              <th class="p-3 font-bold text-rose-700">Original 2D Prototype</th>
+              <th class="p-3 font-bold text-emerald-700">Updated v2.0 Engine (2D+3D Fusion)</th>
+              <th class="p-3 font-bold">Engineering Improvement</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <!-- Cam0 -->
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-3 font-bold text-slate-900" rowspan="4">
+                Sample 1: <code>Cam0</code><br>
+                <span class="text-[11px] font-normal text-slate-500">360&times;640 Portrait · 60 fps<br>Left-Anterior Oblique (~41°)</span>
+              </td>
+              <td class="p-3 font-semibold">Full / Partial / Error Reps</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">1 / 0 / 0</td>
+              <td class="p-3 font-mono-num text-rose-600">1 / 0 / 0 <span class="text-[10px]">(Stuck in 'down' at end)</span></td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">1 / 0 / 0 (Clean 'up' exit)</td>
+              <td class="p-3 text-slate-600">Rejects post-trial waist bend at <code>t=3.33s</code> (<code>knee=6.7°</code>)</td>
+            </tr>
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-3 font-semibold">Peak Knee Flexion &amp; Timing</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">123.6° (R) / 122.7° (L) @ 1.32s</td>
+              <td class="p-3 font-mono-num text-rose-600">134.5° (+10.9° error) @ 1.35s</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">121.4° (-1.8° vs mean) @ 1.32s</td>
+              <td class="p-3 text-slate-600"><strong>5.6&times; lower error</strong> &amp; <strong>0.00s timing error</strong></td>
+            </tr>
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-3 font-semibold">Peak Hip Flexion</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">93.3° (R) / 90.1° (L)</td>
+              <td class="p-3 font-mono-num text-rose-600">99.1° (+7.4° vs mean)</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">87.7° (-2.4° vs L)</td>
+              <td class="p-3 text-slate-600">Pixel aspect scaling removes 9:16 portrait stretch</td>
+            </tr>
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-3 font-semibold">Peak Ankle Dorsiflexion</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">41.1° (R) / 34.2° (L)</td>
+              <td class="p-3 text-slate-400 italic">Not computed</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">40.8° (-0.3° vs R)</td>
+              <td class="p-3 text-slate-600"><strong>Within 0.3°</strong> of OpenSim inverse kinematics</td>
+            </tr>
+
+            <!-- Cam1 -->
+            <tr class="hover:bg-slate-50/80 bg-slate-50/40">
+              <td class="p-3 font-bold text-slate-900" rowspan="3">
+                Sample 1B: <code>Cam1</code><br>
+                <span class="text-[11px] font-normal text-slate-500">360&times;640 Portrait · 60 fps<br>Near-Frontal View (~15°)</span>
+              </td>
+              <td class="p-3 font-semibold">Full / Partial / Error Reps</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">1 / 0 / 0</td>
+              <td class="p-3 font-mono-num font-bold text-rose-600">0 / 0 / 0 (0% Recall Failure!)</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">1 / 0 / 0 (100% Recall)</td>
+              <td class="p-3 text-slate-600">Fixes hardcoded <code>&lt;10°</code> standing return lockup in frontal view</td>
+            </tr>
+            <tr class="hover:bg-slate-50/80 bg-slate-50/40">
+              <td class="p-3 font-semibold">Peak Knee &amp; Hip Flexion</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">Knee: 123.6° · Hip: 93.3°</td>
+              <td class="p-3 font-mono-num text-rose-600">Knee: 97.3° (-26.3°) · Hip: 80.1°</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">Knee: 121.6° (-2.0°) · Hip: 88.1°</td>
+              <td class="p-3 text-slate-600"><strong>13.2&times; lower knee error</strong> via 3D world landmark fusion</td>
+            </tr>
+            <tr class="hover:bg-slate-50/80 bg-slate-50/40">
+              <td class="p-3 font-semibold">Trunk Lean &amp; False Error Rate</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">24.4° bottom (Good Form)</td>
+              <td class="p-3 font-mono-num text-rose-600">34.6° (False Posture Error!)</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">21.9° bottom / 27.7° max (Good)</td>
+              <td class="p-3 text-slate-600">Eliminates frontal-view false posture alarms</td>
+            </tr>
+
+            <!-- Sample 2 Multi-View -->
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-3 font-bold text-slate-900" rowspan="2">
+                Sample 2: <code>Multi-View Squat</code><br>
+                <span class="text-[11px] font-normal text-slate-500">342&times;562 Portrait · 30 fps<br>4 Squats across 4 Views (90° turns)</span>
+              </td>
+              <td class="p-3 font-semibold">Full / Partial / Error Reps</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">4 / 0 / 0 (4 Healthy Squats)</td>
+              <td class="p-3 font-mono-num font-bold text-rose-600">4 / 0 / 4 (100% False Error Rate!)</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">4 / 0 / 0 (0% False Positives)</td>
+              <td class="p-3 text-slate-600">Immune to 90° pivot turns (<code>t=13.7s</code>) &amp; aspect-ratio stretch</td>
+            </tr>
+            <tr class="hover:bg-slate-50/80">
+              <td class="p-3 font-semibold">4-View Peak Knee Consistency</td>
+              <td class="p-3 font-mono-num font-bold text-blue-800">~128°–136° across 4 reps</td>
+              <td class="p-3 font-mono-num text-rose-600">Hip inflated to 148.6°; premature trigger</td>
+              <td class="p-3 font-mono-num font-bold text-emerald-700">130.1°, 136.4°, 128.4°, 130.3°</td>
+              <td class="p-3 text-slate-600">Bilateral L/R visibility weighting works from front, side &amp; rear</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         STUDENT BIOMECHANICS LAB MODULE
+         ====================================================================== -->
+    <section id="student-lab-section" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <div class="border-b border-slate-200 pb-4 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            <i class="fas fa-graduation-cap mr-1"></i> STUDENT LAB MODULE
+          </span>
+          <span class="text-xs text-slate-500 font-semibold">BME 3303 / BME 4903 · Markerless Computer Vision &amp; Squat Biomechanics</span>
+        </div>
+        <h3 class="text-lg font-bold text-slate-900 mt-1">Squat Kinematics, 2D/3D Pose Fusion &amp; Joint Torque Lab Questions</h3>
+        <p class="text-xs text-slate-600 mt-0.5">
+          Explore the sample trials in the Post-Recording Analysis Studio and review the biomechanical concepts below. Click each question to reveal the engineering explanation.
+        </p>
+      </div>
+
+      <div class="space-y-3.5">
+        <!-- Q1 -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50 hover:bg-slate-50 transition">
+          <div class="flex items-start justify-between cursor-pointer" onclick="toggleLabQuestion(1)">
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">Why does computing joint angles directly from normalized <code>[0, 1]</code> video coordinates fail on portrait smartphones?</h4>
+                <p class="text-xs text-slate-500 mt-0.5">Consider the aspect ratio <i>H / W</i> of a vertical 9:16 smartphone video (360 &times; 640) during trunk lean and knee flexion.</p>
+              </div>
+            </div>
+            <button type="button" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 flex-shrink-0">
+              <span id="lab-q-label-1">Show Explanation</span>
+              <i id="lab-q-icon-1" class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+          <div id="lab-q-ans-1" class="hidden mt-3 pt-3 border-t border-slate-200 text-xs text-slate-700 leading-relaxed bg-white p-3.5 rounded">
+            <strong class="text-blue-900">Biomechanical &amp; Computer Vision Explanation:</strong> MediaPipe normalizes 2D landmark coordinates (<i>x<sub>i</sub></i>, <i>y<sub>i</sub></i>) to [0, 1] by dividing horizontal pixel positions by image width <i>W</i> and vertical pixel positions by image height <i>H</i>. In a portrait smartphone video (<i>W</i> = 360, <i>H</i> = 640), one unit of normalized &Delta;<i>x</i> represents 360 px while one unit of normalized &Delta;<i>y</i> represents 640 px. Passing raw normalized differences into <code>atan2(&Delta;x, &Delta;y)</code> stretches horizontal displacements by <i>H / W</i> = 640 / 360 = 1.78&times;! Consequently, a healthy 25&deg; athletic trunk lean is artificially inflated to arctan(1.78 &middot; tan 25&deg;) &approx; 40&deg;, causing false posture errors on every repetition. Scaling coordinates to true pixel space (<i>X<sub>i</sub> = x<sub>i</sub>W</i>, <i>Y<sub>i</sub> = y<sub>i</sub>H</i>) restores isotropic Euclidean geometry across any camera orientation.
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50 hover:bg-slate-50 transition">
+          <div class="flex items-start justify-between cursor-pointer" onclick="toggleLabQuestion(2)">
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">How does our 2D Pixel + 3D World Landmark fusion overcome planar foreshortening in frontal and oblique camera views?</h4>
+                <p class="text-xs text-slate-500 mt-0.5">Compare Sample 1 (Cam0 Oblique) and Sample 1B (Cam1 Frontal) against the OpenSim <code>Squat.mot</code> ground truth.</p>
+              </div>
+            </div>
+            <button type="button" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 flex-shrink-0">
+              <span id="lab-q-label-2">Show Explanation</span>
+              <i id="lab-q-icon-2" class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+          <div id="lab-q-ans-2" class="hidden mt-3 pt-3 border-t border-slate-200 text-xs text-slate-700 leading-relaxed bg-white p-3.5 rounded">
+            <strong class="text-blue-900">Biomechanical &amp; Computer Vision Explanation:</strong> When a camera views a squatter from the front (<code>Cam1</code>), the femur and tibia flex primarily along the camera's optical depth axis (<i>Z</i>). Projecting the 3D thigh and shank vectors onto the 2D image plane (<i>X, Y</i>) foreshortens their apparent angle, causing pure 2D knee flexion to read only 69.9&deg;&ndash;97.3&deg; when true OpenSim 3D knee flexion is 123.6&deg;. Conversely, in oblique/sagittal views (<code>Cam0</code>), averaging the 2D pixel angles of the near and far legs cancels first-order perspective projection error. By computing the foreshortening deficit (<i>k</i><sub>3D</sub> &minus; <i>k</i><sub>2D</sub>) and smoothly blending toward MediaPipe's metric 3D <code>poseWorldLandmarks</code> when 2D foreshortening is detected, our engine achieves 121.4&deg; on <code>Cam0</code> and 121.6&deg; on <code>Cam1</code> (&lt;2.2&deg; error across both views).
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50 hover:bg-slate-50 transition">
+          <div class="flex items-start justify-between cursor-pointer" onclick="toggleLabQuestion(3)">
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">What are the biomechanical consequences of excessive forward trunk lean (&gt;40°) vs. moderate athletic trunk lean (20°–35°)?</h4>
+                <p class="text-xs text-slate-500 mt-0.5">Analyze lumbar shear forces and the shifting moment arms at the hip and knee joints.</p>
+              </div>
+            </div>
+            <button type="button" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 flex-shrink-0">
+              <span id="lab-q-label-3">Show Explanation</span>
+              <i id="lab-q-icon-3" class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+          <div id="lab-q-ans-3" class="hidden mt-3 pt-3 border-t border-slate-200 text-xs text-slate-700 leading-relaxed bg-white p-3.5 rounded">
+            <strong class="text-blue-900">Biomechanical Mechanism:</strong> During a natural deep squat, moderate forward trunk inclination (20&deg;&ndash;35&deg;, as seen in the OpenSim ground truth where pelvis tilt + lumbar flexion reaches 24.4&deg; at bottom and 35.5&deg; during ascent) keeps the combined center of mass (COM) balanced over the mid-foot while recruiting the hip extensors (gluteus maximus and hamstrings). However, when trunk lean exceeds 40&deg; (a "good-morning squat" compensation, often caused by weak quadriceps or restricted ankle dorsiflexion), the horizontal moment arm from the L4/L5 intervertebral disc to the upper-body COM increases dramatically as <i>L</i><sub>torso</sub> sin(&theta;<sub>trunk</sub>). This magnifies compressive and anterior shear loads on the lumbar spine.
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50 hover:bg-slate-50 transition">
+          <div class="flex items-start justify-between cursor-pointer" onclick="toggleLabQuestion(4)">
+            <div class="flex items-start gap-3">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">Why must a squat state machine require simultaneous knee AND hip flexion rather than hip flexion alone?</h4>
+                <p class="text-xs text-slate-500 mt-0.5">Examine what happens when a subject bends at the waist to pick up weights or pivots between sets.</p>
+              </div>
+            </div>
+            <button type="button" class="text-blue-600 hover:text-blue-800 text-xs font-semibold flex items-center gap-1 flex-shrink-0">
+              <span id="lab-q-label-4">Show Explanation</span>
+              <i id="lab-q-icon-4" class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+          <div id="lab-q-ans-4" class="hidden mt-3 pt-3 border-t border-slate-200 text-xs text-slate-700 leading-relaxed bg-white p-3.5 rounded">
+            <strong class="text-blue-900">Biomechanical State-Machine Design:</strong> A pure hip hinge (bending forward at the waist with straight legs, such as at <i>t</i> = 3.33 s in <code>Cam0</code>) produces large hip flexion (&gt;35&deg;) while knee flexion remains near zero (6.7&deg;). If the descent state trigger only checks <code>hipFlexion &gt; 30&deg;</code>, any waist bend or torso rotation falsely enters the <code>'down'</code> squat state. By requiring <strong>coupled multi-joint descent</strong> (&theta;<sub>knee</sub> &gt; 35&deg; AND &theta;<sub>hip</sub> &gt; 30&deg;) along with a minimum bottom depth (max &theta;<sub>knee</sub> &ge; 45&deg;) and minimum excursion duration (&ge; 0.35 s), the state machine cleanly distinguishes true squats from hip hinges and pivot turns.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       POST-RECORDING VIDEO REPLAY & KINEMATIC ANGLE ANALYSIS STUDIO MODAL
+       ======================================================================== -->
+  <div id="analysis-studio-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-2 sm:p-4 lg:p-6">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-7xl mx-auto overflow-hidden my-2">
+
+      <!-- Modal Top Header -->
+      <div class="px-5 py-4 bg-slate-900 text-white flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg font-bold shadow">
+            <i class="fas fa-film"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-base sm:text-lg font-bold text-white">Post-Recording Video Replay &amp; Kinematic Analysis Studio</h2>
+              <span id="studio-trial-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                Session Recording
+              </span>
+              <span id="studio-opensim-rmse-badge" class="hidden px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                OpenSim GT Active
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">
+              Synchronized frame-by-frame video scrubber, pose skeleton replay, interactive Plotly joint trajectories &amp; CSV export
+            </p>
+          </div>
+        </div>
+
+        <!-- Studio Action Buttons -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-download-video" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+            <i class="fas fa-download text-sky-400"></i>
+            <span>Download Video</span>
+          </button>
+          <button id="btn-export-csv-studio" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-sm">
+            <i class="fas fa-file-csv"></i>
+            <span>Export Kinematics CSV</span>
+          </button>
+          <button id="btn-close-studio" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition flex items-center gap-1.5">
+            <i class="fas fa-times"></i>
+            <span>Close Studio</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Studio Summary KPI Strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 p-3 bg-slate-100 border-b border-slate-200 text-center">
+        <div class="bg-white rounded-lg p-2 border border-slate-200">
+          <div class="text-[10px] font-bold uppercase text-slate-400">Total Reps</div>
+          <div id="studio-kpi-total" class="text-lg font-black font-mono-num text-slate-800">0</div>
+        </div>
+        <div class="bg-white rounded-lg p-2 border border-emerald-200">
+          <div class="text-[10px] font-bold uppercase text-emerald-700">Full Reps</div>
+          <div id="studio-kpi-full" class="text-lg font-black font-mono-num text-emerald-600">0</div>
+        </div>
+        <div class="bg-white rounded-lg p-2 border border-amber-200">
+          <div class="text-[10px] font-bold uppercase text-amber-700">Partial Reps</div>
+          <div id="studio-kpi-partial" class="text-lg font-black font-mono-num text-amber-600">0</div>
+        </div>
+        <div class="bg-white rounded-lg p-2 border border-rose-200">
+          <div class="text-[10px] font-bold uppercase text-rose-700">Reps w/ Errors</div>
+          <div id="studio-kpi-errors" class="text-lg font-black font-mono-num text-rose-600">0</div>
+        </div>
+        <div class="bg-white rounded-lg p-2 border border-slate-200">
+          <div class="text-[10px] font-bold uppercase text-slate-400">Max Knee Depth</div>
+          <div id="studio-kpi-maxknee" class="text-lg font-black font-mono-num text-blue-600">0.0°</div>
+        </div>
+        <div class="bg-white rounded-lg p-2 border border-slate-200">
+          <div class="text-[10px] font-bold uppercase text-slate-400">Duration / Frames</div>
+          <div id="studio-kpi-duration" class="text-sm font-bold font-mono-num text-slate-700 mt-1">0.0s (0f)</div>
+        </div>
+      </div>
+
+      <!-- Studio Main 12-Col Grid: Video Replay (5 cols) + Plotly Kinematic Chart (7 cols) -->
+      <div class="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+        <!-- Left (5 cols): Synchronized Video Replay Player & Playhead Telemetry -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-md">
+            <div class="px-3.5 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
+              <span class="font-bold flex items-center gap-1.5">
+                <i class="fas fa-play-circle text-sky-400"></i>
+                <span>Synchronized Video &amp; Pose Replay</span>
+              </span>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-slate-300">
+                <input type="checkbox" id="toggle-replay-skeleton" checked class="rounded text-blue-500">
+                <span>Skeleton Overlay</span>
+              </label>
+            </div>
+
+            <!-- Replay Viewport -->
+            <div class="replay-viewport">
+              <video id="replay-video" playsinline preload="auto"></video>
+              <canvas id="replay-canvas"></canvas>
+            </div>
+
+            <!-- Scrubber & Frame Step Controls -->
+            <div class="p-3 bg-slate-900 text-white space-y-2 border-t border-slate-800">
+              <div class="flex items-center gap-2.5">
+                <span id="replay-current-time" class="text-xs font-mono-num text-sky-400 w-14">0.00s</span>
+                <input id="replay-scrubber" type="range" min="0" max="10" step="0.01" value="0" class="w-full scrubber-slider">
+                <span id="replay-duration" class="text-xs font-mono-num text-slate-400 w-14 text-right">0.00s</span>
+              </div>
+
+              <div class="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                <div class="flex items-center gap-1.5">
+                  <button id="replay-play-btn" type="button" class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-xs font-bold transition flex items-center gap-1">
+                    <i class="fas fa-play"></i>
+                    <span>Play</span>
+                  </button>
+                  <button id="replay-prev-frame" type="button" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition" title="Step back 1 frame">
+                    <i class="fas fa-step-backward"></i> -1f
+                  </button>
+                  <button id="replay-next-frame" type="button" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition" title="Step forward 1 frame">
+                    +1f <i class="fas fa-step-forward"></i>
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-1.5 text-xs">
+                  <label for="replay-speed" class="text-slate-400">Speed:</label>
+                  <select id="replay-speed" class="bg-slate-800 text-white text-xs rounded px-2 py-1 border border-slate-700">
+                    <option value="0.25">0.25&times;</option>
+                    <option value="0.5">0.50&times;</option>
+                    <option value="1.0" selected>1.00&times;</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instantaneous Playhead Angle Telemetry Card -->
+          <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+              <span class="text-xs font-bold text-slate-800">
+                <i class="fas fa-crosshairs text-blue-600 mr-1"></i>Angles at Playhead (<span id="cursor-time-label" class="font-mono-num text-blue-600">t = 0.00s</span>)
+              </span>
+              <span id="cursor-state-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 uppercase">STANDING</span>
+            </div>
+
+            <div class="grid grid-cols-5 gap-2 text-center">
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="text-[10px] font-bold text-slate-400">Knee</div>
+                <div id="cursor-knee" class="text-sm font-black font-mono-num text-blue-600">--°</div>
+                <div id="cursor-gt-knee" class="hidden text-[9px] font-mono-num text-slate-500">GT: --°</div>
+              </div>
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="text-[10px] font-bold text-slate-400">Hip</div>
+                <div id="cursor-hip" class="text-sm font-black font-mono-num text-emerald-600">--°</div>
+                <div id="cursor-gt-hip" class="hidden text-[9px] font-mono-num text-slate-500">GT: --°</div>
+              </div>
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="text-[10px] font-bold text-slate-400">Trunk</div>
+                <div id="cursor-trunk" class="text-sm font-black font-mono-num text-amber-600">--°</div>
+                <div id="cursor-gt-trunk" class="hidden text-[9px] font-mono-num text-slate-500">GT: --°</div>
+              </div>
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="text-[10px] font-bold text-slate-400">Ankle</div>
+                <div id="cursor-ankle" class="text-sm font-black font-mono-num text-purple-600">--°</div>
+                <div id="cursor-gt-ankle" class="hidden text-[9px] font-mono-num text-slate-500">GT: --°</div>
+              </div>
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="text-[10px] font-bold text-slate-400">Valgus</div>
+                <div id="cursor-valgus" class="text-sm font-black font-mono-num text-rose-600">--°</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right (7 cols): Interactive Plotly Kinematic Angle Graph -->
+        <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i class="fas fa-chart-line text-blue-600"></i>
+                <span>Continuous Joint Kinematic Trajectories vs. Time (s)</span>
+              </h3>
+              <p class="text-[11px] text-slate-500">
+                Click any point on the graph to seek the video player · Shaded bands highlight detected repetitions
+              </p>
+            </div>
+
+            <!-- OpenSim Ground Truth Overlay Checkbox -->
+            <div class="flex items-center gap-2">
+              <label id="opensim-gt-toggle-wrap" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 cursor-pointer select-none">
+                <input type="checkbox" id="toggle-opensim-gt" checked class="rounded text-emerald-600">
+                <span>Overlay OpenSim Ground Truth (<code>Squat.mot</code>)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Plotly Chart Container -->
+          <div id="studio-plotly-chart" class="w-full h-96"></div>
+
+          <div class="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 flex-wrap gap-2">
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-2 inline-block bg-emerald-500/25 border border-emerald-500 rounded-sm"></span> Full Rep Window</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-2 inline-block bg-amber-500/25 border border-amber-500 rounded-sm"></span> Partial Rep Window</span>
+              <span class="inline-flex items-center gap-1"><span class="w-3 h-2 inline-block bg-rose-500/25 border border-rose-500 rounded-sm"></span> Form Error Window</span>
+            </div>
+            <span class="font-medium text-slate-600"><i class="fas fa-mouse-pointer text-blue-500 mr-1"></i>Click chart to scrub video</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Studio Bottom: Rep-by-Rep Breakdown Table -->
+      <div class="px-5 pb-5">
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+              <i class="fas fa-table text-blue-600"></i>
+              <span>Repetition-by-Repetition Kinematic Summary &amp; Form Error Breakdown</span>
+            </h3>
+            <span class="text-[11px] text-slate-500">Click "Seek to Bottom" or "Replay Rep" to inspect that movement phase</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-700">
+                  <th class="p-2.5 font-bold">Rep #</th>
+                  <th class="p-2.5 font-bold">Classification</th>
+                  <th class="p-2.5 font-bold">Time Window</th>
+                  <th class="p-2.5 font-bold">Bottom (<i>t</i><sub>min</sub>)</th>
+                  <th class="p-2.5 font-bold text-blue-700">Peak Knee</th>
+                  <th class="p-2.5 font-bold text-emerald-700">Peak Hip</th>
+                  <th class="p-2.5 font-bold text-amber-700">Peak Trunk Lean</th>
+                  <th class="p-2.5 font-bold text-purple-700">Peak Ankle</th>
+                  <th class="p-2.5 font-bold text-rose-700">Peak Valgus</th>
+                  <th class="p-2.5 font-bold">Form Assessment / Errors</th>
+                  <th class="p-2.5 font-bold text-right">Video Seek Actions</th>
+                </tr>
+              </thead>
+              <tbody id="studio-rep-table-body" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="11" class="p-4 text-center text-slate-400">No repetitions recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Banner -->
+  <div id="toast-banner" class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl border border-slate-700 flex items-center gap-2 transition-all duration-300"></div>
+
+  <!-- ========================================================================
+       FOOTER (LTU EBL Standard Template)
+       ======================================================================== -->
+  <footer class="bg-white border-t border-slate-200 mt-10 py-6 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
+      <p class="font-semibold text-slate-700">
+        Lawrence Technological University · Experimental Biomechanics Laboratory (EBL) · Department of Biomedical Engineering
+      </p>
+      <p>
+        Squat Biomechanics &amp; Form Analyzer v2.0 · Validated against OpenCap &amp; OpenSim Musculoskeletal Inverse Kinematics (LaiUhlrich2022).
+      </p>
+      <p class="text-[11px] text-slate-400">
+        Powered by MediaPipe Pose (2D Pixel + 3D World Landmark Fusion) &amp; Plotly.js · Designed for biomechanics research, clinical screening, and student education.
+      </p>
+    </div>
+  </footer>
+
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>
